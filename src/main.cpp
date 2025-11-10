@@ -20,8 +20,6 @@ BleController *controller = nullptr; // Глобально
 void setup()
 {
   Serial.begin(115200);
-  delay(5000);
-
   // Pinmode inside each motor
   Motor *allMotors[4] = {
       // up left

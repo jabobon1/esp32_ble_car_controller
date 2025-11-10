@@ -43,3 +43,6 @@
 # IDE
 .pio
 .vscode
+
+# Other 
+.DS_Store

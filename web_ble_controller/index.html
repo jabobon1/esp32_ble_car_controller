@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RC Car Controller</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+        
+        .app-container {
+            width: 100%;
+            max-width: 500px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            color: #2d3748;
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+        
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .status-badge.disconnected {
+            background: #fed7d7;
+            color: #c53030;
+        }
+        
+        .status-badge.connected {
+            background: #c6f6d5;
+            color: #2f855a;
+        }
+        
+        .status-badge.connecting {
+            background: #feebc8;
+            color: #c05621;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .connect-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 24px;
+        }
+        
+        .connect-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .connect-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+        
+        .connect-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .controls-section {
+            margin-bottom: 24px;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        
+        .joystick-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            padding: 20px;
+            background: linear-gradient(135deg, #f6f8fb 0%, #e9ecef 100%);
+            border-radius: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .joystick-container {
+            position: relative;
+            width: 250px;
+            height: 250px;
+            background: radial-gradient(circle, #cbd5e0 0%, #a0aec0 100%);
+            border-radius: 50%;
+            box-shadow: 
+                inset 0 2px 8px rgba(0, 0, 0, 0.2),
+                0 4px 12px rgba(0, 0, 0, 0.15);
+            touch-action: none;
+        }
+        
+        .joystick-inner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 200px;
+            background: linear-gradient(145deg, #e2e8f0, #cbd5e0);
+            border-radius: 50%;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .joystick-handle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(145deg, #667eea, #764ba2);
+            border-radius: 50%;
+            cursor: grab;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);
+            transition: all 0.1s ease;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .joystick-handle:active {
+            cursor: grabbing;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.6);
+        }
+        
+        .joystick-handle.disabled {
+            background: linear-gradient(145deg, #cbd5e0, #a0aec0);
+            cursor: not-allowed;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+        
+        .direction-indicators {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        .direction-arrow {
+            position: absolute;
+            color: rgba(0, 0, 0, 0.3);
+            font-size: 20px;
+            font-weight: bold;
+        }
+        
+        .arrow-up { top: 10px; left: 50%; transform: translateX(-50%); }
+        .arrow-down { bottom: 10px; left: 50%; transform: translateX(-50%); }
+        .arrow-left { top: 50%; left: 10px; transform: translateY(-50%); }
+        .arrow-right { top: 50%; right: 10px; transform: translateY(-50%); }
+        
+        .command-display {
+            text-align: center;
+            padding: 12px 24px;
+            background: white;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #667eea;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .button-controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 12px;
+            padding: 20px;
+            background: linear-gradient(135deg, #f6f8fb 0%, #e9ecef 100%);
+            border-radius: 16px;
+        }
+        
+        .control-btn {
+            aspect-ratio: 1;
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 700;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            min-height: 70px;
+        }
+        
+        .control-btn:active:not(:disabled) {
+            transform: scale(0.95);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .control-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        .btn-forward {
+            grid-column: 2;
+            grid-row: 1;
+            background: linear-gradient(135deg, #48bb78, #38a169);
+        }
+        
+        .btn-backward {
+            grid-column: 2;
+            grid-row: 3;
+            background: linear-gradient(135deg, #4299e1, #3182ce);
+        }
+        
+        .btn-ul {
+            grid-column: 1;
+            grid-row: 1;
+            background: linear-gradient(135deg, #9f7aea, #805ad5);
+        }
+        
+        .btn-ur {
+            grid-column: 3;
+            grid-row: 1;
+            background: linear-gradient(135deg, #ed8936, #dd6b20);
+        }
+        
+        .btn-dl {
+            grid-column: 1;
+            grid-row: 3;
+            background: linear-gradient(135deg, #38b2ac, #319795);
+        }
+        
+        .btn-dr {
+            grid-column: 3;
+            grid-row: 3;
+            background: linear-gradient(135deg, #ed64a6, #d53f8c);
+        }
+        
+        .btn-stop {
+            grid-column: 2;
+            grid-row: 2;
+            background: linear-gradient(135deg, #fc8181, #f56565);
+            font-size: 20px;
+        }
+        
+        .log-section {
+            max-height: 150px;
+            overflow-y: auto;
+            background: #2d3748;
+            border-radius: 12px;
+            padding: 12px;
+            margin-top: 16px;
+        }
+        
+        .log-entry {
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+            color: #e2e8f0;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+        
+        .log-time {
+            color: #90cdf4;
+        }
+        
+        .log-error {
+            color: #fc8181;
+        }
+        
+        .log-success {
+            color: #68d391;
+        }
+        
+        .log-warning {
+            color: #f6ad55;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 12px;
+            color: #718096;
+        }
+        
+        @media (max-width: 480px) {
+            .app-container {
+                padding: 16px;
+            }
+            
+            .joystick-container {
+                width: 220px;
+                height: 220px;
+            }
+            
+            .joystick-inner {
+                width: 180px;
+                height: 180px;
+            }
+            
+            .joystick-handle {
+                width: 70px;
+                height: 70px;
+            }
+            
+            .control-btn {
+                min-height: 60px;
+                font-size: 12px;
+            }
+        }
+        
+        @media (orientation: landscape) and (max-height: 600px) {
+            .app-container {
+                max-width: 90vw;
+            }
+            
+            .controls-section {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 20px;
+            }
+            
+            .joystick-wrapper {
+                margin-bottom: 0;
+            }
+            
+            .joystick-container {
+                width: 200px;
+                height: 200px;
+            }
+            
+            .joystick-inner {
+                width: 160px;
+                height: 160px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="header">
+            <h1>🚗 RC Car Control</h1>
+            <div class="status-badge disconnected" id="statusBadge">
+                <span class="status-dot"></span>
+                <span id="statusText">Не подключено</span>
+            </div>
+        </div>
+        
+        <button class="connect-btn" id="connectBtn">
+            🔌 Подключиться к машинке
+        </button>
+        
+        <div class="controls-section">
+            <div class="joystick-wrapper">
+                <div class="section-title">Джойстик</div>
+                <div class="joystick-container" id="joystickContainer">
+                    <div class="joystick-inner"></div>
+                    <div class="direction-indicators">
+                        <div class="direction-arrow arrow-up">↑</div>
+                        <div class="direction-arrow arrow-down">↓</div>
+                        <div class="direction-arrow arrow-left">←</div>
+                        <div class="direction-arrow arrow-right">→</div>
+                    </div>
+                    <div class="joystick-handle disabled" id="joystickHandle">
+                        ●
+                    </div>
+                </div>
+                <div class="command-display" id="commandDisplay">
+                    Ожидание...
+                </div>
+            </div>
+            
+            <div>
+                <div class="section-title">Кнопки управления</div>
+                <div class="button-controls">
+                    <button class="control-btn btn-ul" data-cmd="UL" disabled>
+                        ↖<br>UL
+                    </button>
+                    <button class="control-btn btn-forward" data-cmd="F" disabled>
+                        ↑<br>Вперёд
+                    </button>
+                    <button class="control-btn btn-ur" data-cmd="UR" disabled>
+                        ↗<br>UR
+                    </button>
+                    <button class="control-btn btn-dl" data-cmd="DL" disabled>
+                        ↙<br>DL
+                    </button>
+                    <button class="control-btn btn-stop" data-cmd="S" disabled>
+                        ⬛<br>СТОП
+                    </button>
+                    <button class="control-btn btn-dr" data-cmd="DR" disabled>
+                        ↘<br>DR
+                    </button>
+                    <button class="control-btn btn-backward" data-cmd="B" disabled>
+                        ↓<br>Назад
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="log-section" id="logSection">
+            <div id="logEntries"></div>
+        </div>
+        
+        <div class="footer">
+            Web Bluetooth RC Controller
+        </div>
+    </div>
+
+    <script>
+        const SERVICE_UUID = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
+        const CHARACTERISTIC_UUID = 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
+        
+        const elements = {
+            statusBadge: document.getElementById('statusBadge'),
+            statusText: document.getElementById('statusText'),
+            connectBtn: document.getElementById('connectBtn'),
+            joystickContainer: document.getElementById('joystickContainer'),
+            joystickHandle: document.getElementById('joystickHandle'),
+            commandDisplay: document.getElementById('commandDisplay'),
+            logEntries: document.getElementById('logEntries'),
+            controlButtons: document.querySelectorAll('.control-btn')
+        };
+        
+        let bluetoothDevice = null;
+        let characteristic = null;
+        let isDragging = false;
+        let lastCommand = null;
+        let isConnected = false;
+        
+        const commands = {
+            'F': 'Вперёд',
+            'B': 'Назад',
+            'S': 'Стоп',
+            'UL': 'Вперёд-Влево',
+            'UR': 'Вперёд-Вправо',
+            'DL': 'Назад-Влево',
+            'DR': 'Назад-Вправо'
+        };
+        
+        function log(message, type = 'info') {
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            
+            let className = '';
+            if (type === 'error') className = 'log-error';
+            if (type === 'success') className = 'log-success';
+            if (type === 'warning') className = 'log-warning';
+            
+            entry.innerHTML = `<span class="log-time">[${time}]</span> <span class="${className}">${message}</span>`;
+            elements.logEntries.appendChild(entry);
+            elements.logEntries.parentElement.scrollTop = elements.logEntries.parentElement.scrollHeight;
+        }
+        
+        function updateStatus(connected) {
+            isConnected = connected;
+            
+            if (connected) {
+                elements.statusBadge.className = 'status-badge connected';
+                elements.statusText.textContent = 'Подключено';
+                elements.connectBtn.textContent = '🔌 Отключиться';
+                elements.joystickHandle.classList.remove('disabled');
+                elements.controlButtons.forEach(btn => btn.disabled = false);
+            } else {
+                elements.statusBadge.className = 'status-badge disconnected';
+                elements.statusText.textContent = 'Не подключено';
+                elements.connectBtn.textContent = '🔌 Подключиться к машинке';
+                elements.joystickHandle.classList.add('disabled');
+                elements.controlButtons.forEach(btn => btn.disabled = true);
+            }
+        }
+        
+        async function sendCommand(cmd) {
+            if (!characteristic || !isConnected || lastCommand === cmd) return;
+            
+            try {
+                const encoder = new TextEncoder();
+                await characteristic.writeValue(encoder.encode(cmd));
+                lastCommand = cmd;
+                elements.commandDisplay.textContent = commands[cmd] || cmd;
+                log(`Отправлено: ${cmd} (${commands[cmd] || 'команда'})`, 'success');
+            } catch (error) {
+                log(`Ошибка отправки: ${error.message}`, 'error');
+            }
+        }
+        
+        async function connect() {
+            if (bluetoothDevice && bluetoothDevice.gatt.connected) {
+                bluetoothDevice.gatt.disconnect();
+                updateStatus(false);
+                log('Отключено от устройства');
+                return;
+            }
+            
+            try {
+                elements.statusBadge.className = 'status-badge connecting';
+                elements.statusText.textContent = 'Подключение...';
+                log('Поиск устройств...');
+                
+                bluetoothDevice = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: [SERVICE_UUID] }],
+                    optionalServices: [SERVICE_UUID]
+                });
+                
+                log(`Найдено: ${bluetoothDevice.name || 'RC Car'}`);
+                
+                const server = await bluetoothDevice.gatt.connect();
+                log('Подключение к GATT серверу...');
+                
+                const service = await server.getPrimaryService(SERVICE_UUID);
+                characteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
+                
+                bluetoothDevice.addEventListener('gattserverdisconnected', () => {
+                    log('Устройство отключено', 'warning');
+                    updateStatus(false);
+                    characteristic = null;
+                });
+                
+                updateStatus(true);
+                log('Подключение успешно!', 'success');
+                
+            } catch (error) {
+                log(`Ошибка подключения: ${error.message}`, 'error');
+                updateStatus(false);
+            }
+        }
+        
+        function initJoystick() {
+            const container = elements.joystickContainer;
+            const handle = elements.joystickHandle;
+            const maxDistance = 80;
+            
+            function getPosition(e) {
+                const rect = container.getBoundingClientRect();
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+                
+                let clientX, clientY;
+                if (e.type.includes('touch')) {
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                } else {
+                    clientX = e.clientX;
+                    clientY = e.clientY;
+                }
+                
+                const x = clientX - rect.left - centerX;
+                const y = clientY - rect.top - centerY;
+                
+                const distance = Math.min(Math.sqrt(x*x + y*y), maxDistance);
+                const angle = Math.atan2(y, x);
+                
+                return {
+                    x: Math.cos(angle) * distance,
+                    y: Math.sin(angle) * distance,
+                    angle: angle * 180 / Math.PI
+                };
+            }
+            
+            function getCommand(angle, distance) {
+                if (distance < 20) return 'S';
+                
+                // angle: 0° = право, 90° = вниз, 180°/-180° = лево, -90° = вверх
+                // Нам нужно: вверх = F, вниз = B, верх-лево = UL, верх-право = UR, низ-лево = DL, низ-право = DR
+                
+                if (angle >= -112.5 && angle < -67.5) {
+                    return 'F'; // Вперёд (вверх)
+                } else if (angle >= -67.5 && angle < -22.5) {
+                    return 'UR'; // Вперёд-Вправо (вверх-вправо)
+                } else if (angle >= -22.5 && angle < 22.5) {
+                    return 'UR'; // Вправо (считаем как вперёд-вправо)
+                } else if (angle >= 22.5 && angle < 67.5) {
+                    return 'DR'; // Назад-Вправо (вниз-вправо)
+                } else if (angle >= 67.5 && angle < 112.5) {
+                    return 'B'; // Назад (вниз)
+                } else if (angle >= 112.5 && angle < 157.5) {
+                    return 'DL'; // Назад-Влево (вниз-влево)
+                } else if (angle >= 157.5 || angle <= -157.5) {
+                    return 'DL'; // Влево (считаем как назад-влево)
+                } else if (angle >= -157.5 && angle < -112.5) {
+                    return 'UL'; // Вперёд-Влево (вверх-влево)
+                }
+                
+                return 'S';
+            }
+            
+            function onMove(e) {
+                if (!isDragging || !isConnected) return;
+                e.preventDefault();
+                
+                const pos = getPosition(e);
+                handle.style.transform = `translate(calc(-50% + ${pos.x}px), calc(-50% + ${pos.y}px))`;
+                
+                const distance = Math.sqrt(pos.x*pos.x + pos.y*pos.y);
+                const cmd = getCommand(pos.angle, distance);
+                sendCommand(cmd);
+            }
+            
+            function onEnd() {
+                if (!isDragging) return;
+                isDragging = false;
+                handle.style.transform = 'translate(-50%, -50%)';
+                sendCommand('S');
+                lastCommand = null;
+                elements.commandDisplay.textContent = 'Ожидание...';
+            }
+            
+            handle.addEventListener('mousedown', (e) => {
+                if (!isConnected) return;
+                isDragging = true;
+                e.preventDefault();
+            });
+            
+            handle.addEventListener('touchstart', (e) => {
+                if (!isConnected) return;
+                isDragging = true;
+                e.preventDefault();
+            });
+            
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('touchmove', onMove, { passive: false });
+            document.addEventListener('mouseup', onEnd);
+            document.addEventListener('touchend', onEnd);
+        }
+        
+        function initButtons() {
+            elements.controlButtons.forEach(btn => {
+                const cmd = btn.getAttribute('data-cmd');
+                
+                const pressHandler = (e) => {
+                    e.preventDefault();
+                    sendCommand(cmd);
+                };
+                
+                const releaseHandler = () => {
+                    if (cmd !== 'S') {
+                        sendCommand('S');
+                        lastCommand = null;
+                    }
+                };
+                
+                btn.addEventListener('mousedown', pressHandler);
+                btn.addEventListener('touchstart', pressHandler);
+                btn.addEventListener('mouseup', releaseHandler);
+                btn.addEventListener('mouseleave', releaseHandler);
+                btn.addEventListener('touchend', releaseHandler);
+            });
+        }
+        
+        elements.connectBtn.addEventListener('click', connect);
+        
+        initJoystick();
+        initButtons();
+        
+        if (!navigator.bluetooth) {
+            log('Web Bluetooth не поддерживается в этом браузере', 'error');
+            elements.connectBtn.disabled = true;
+        } else {
+            log('Web Bluetooth API готов к работе', 'success');
+        }
+    </script>
+</body>
+</html>
